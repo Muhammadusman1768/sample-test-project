@@ -2,26 +2,20 @@
 
 namespace DTApi\Repository;
 
-use Validator;
 use Illuminate\Database\Eloquent\Model;
-use DTApi\Exceptions\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Validator;
+use DTApi\Exceptions\ValidationException;
 
 class BaseRepository
 {
-
     /**
      * @var Model
      */
     protected $model;
 
     /**
-     * @var array
-     */
-    protected $validationRules = [];
-
-    /**
-     * @param Model $model
+     * @param Model|null $model
      */
     public function __construct(Model $model = null)
     {
@@ -29,23 +23,9 @@ class BaseRepository
     }
 
     /**
-     * @return array
-     */
-    public function validatorAttributeNames()
-    {
-        return [];
-    }
-
-    /**
-     * @return Model
-     */
-    public function getModel()
-    {
-        return $this->model;
-    }
-
-    /**
-     * @return \Illuminate\Database\Eloquent\Collection|Model[]
+     * Get all records from the model.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
      */
     public function all()
     {
@@ -53,7 +33,9 @@ class BaseRepository
     }
 
     /**
-     * @param integer $id
+     * Find a record by ID.
+     *
+     * @param int $id
      * @return Model|null
      */
     public function find($id)
@@ -61,13 +43,10 @@ class BaseRepository
         return $this->model->find($id);
     }
 
-    public function with($array)
-    {
-        return $this->model->with($array);
-    }
-
     /**
-     * @param integer $id
+     * Find a record by ID or fail if not found.
+     *
+     * @param int $id
      * @return Model
      * @throws ModelNotFoundException
      */
@@ -77,80 +56,41 @@ class BaseRepository
     }
 
     /**
+     * Find a record by slug.
+     *
      * @param string $slug
-     * @return Model
-     * @throws ModelNotFoundException
+     * @return Model|null
      */
     public function findBySlug($slug)
     {
-
         return $this->model->where('slug', $slug)->first();
-
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function query()
-    {
-        return $this->model->query();
-    }
-
-    /**
+     * Get a new instance of the model.
+     *
      * @param array $attributes
      * @return Model
      */
     public function instance(array $attributes = [])
     {
-        $model = $this->model;
-        return new $model($attributes);
+        return $this->model->newInstance($attributes);
     }
 
     /**
+     * Paginate records from the model.
+     *
      * @param int|null $perPage
-     * @return mixed
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
     public function paginate($perPage = null)
     {
         return $this->model->paginate($perPage);
     }
 
-    public function where($key, $where)
-    {
-        return $this->model->where($key, $where);
-    }
-
     /**
-     * @param array $data
-     * @param null $rules
-     * @param array $messages
-     * @param array $customAttributes
-     * @return \Illuminate\Validation\Validator
-     */
-    public function validator(array $data = [], $rules = null, array $messages = [], array $customAttributes = [])
-    {
-        if (is_null($rules)) {
-            $rules = $this->validationRules;
-        }
-
-        return Validator::make($data, $rules, $messages, $customAttributes);
-    }
-
-    /**
-     * @param array $data
-     * @param null $rules
-     * @param array $messages
-     * @param array $customAttributes
-     * @return bool
-     * @throws ValidationException
-     */
-    public function validate(array $data = [], $rules = null, array $messages = [], array $customAttributes = [])
-    {
-        $validator = $this->validator($data, $rules, $messages, $customAttributes);
-        return $this->_validate($validator);
-    }
-
-    /**
+     * Create a new record in the model.
+     *
      * @param array $data
      * @return Model
      */
@@ -160,9 +100,12 @@ class BaseRepository
     }
 
     /**
-     * @param integer $id
+     * Update a record in the model.
+     *
+     * @param int $id
      * @param array $data
      * @return Model
+     * @throws ModelNotFoundException
      */
     public function update($id, array $data = [])
     {
@@ -172,9 +115,11 @@ class BaseRepository
     }
 
     /**
-     * @param integer $id
+     * Delete a record from the model.
+     *
+     * @param int $id
      * @return Model
-     * @throws \Exception
+     * @throws ModelNotFoundException
      */
     public function delete($id)
     {
@@ -184,22 +129,31 @@ class BaseRepository
     }
 
     /**
-     * @param \Illuminate\Validation\Validator $validator
+     * Validate the given data using the provided rules.
+     *
+     * @param array $data
+     * @param array|null $rules
+     * @param array $messages
+     * @param array $customAttributes
      * @return bool
      * @throws ValidationException
      */
-    protected function _validate(\Illuminate\Validation\Validator $validator)
+    public function validate(array $data = [], array $rules = null, array $messages = [], array $customAttributes = [])
     {
+        if (is_null($rules)) {
+            $rules = $this->validationRules;
+        }
+
+        $validator = Validator::make($data, $rules, $messages, $customAttributes);
+
         if (!empty($attributeNames = $this->validatorAttributeNames())) {
             $validator->setAttributeNames($attributeNames);
         }
 
         if ($validator->fails()) {
-            return false;
             throw (new ValidationException)->setValidator($validator);
         }
 
         return true;
     }
-
 }
